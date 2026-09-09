@@ -99,3 +99,23 @@ Elle a immédiatement gagné son coût : elle a trouvé le plantage sans ALSA
 décrit plus haut, sur la plateforme même où le projet a été écrit. Trois
 systèmes au vert et Linux seul en échec, parce que macOS et Windows n'ont pas
 ce comportement.
+
+---
+
+## L'apparence
+
+La palette reprend celle du DX7 de 1983, parce qu'un outil qui parle à cette
+machine gagne à lui ressembler — et parce que quatre matières suffisent à s'en
+souvenir :
+
+| Élément | Couleur | Ce que ça imite |
+|---|---|---|
+| Châssis | `#2B2724` | le brun sombre du boîtier, plus chaud qu'un noir |
+| Touches | `#C6BCA8` | les touches à membrane beige, avec un liseré bas qui les bombe |
+| Accent | `#C2551F` | l'orange Yamaha, réservé à l'action principale |
+| Journal | `#A9BE55` sur `#23300F` | l'écran LCD vert-jaune à caractères sombres |
+
+⚠️ **La sélection n'utilise pas l'orange plein.** Essayé, puis abandonné : elle
+recouvrait la colonne État et rendait illisibles les couleurs de somme de
+contrôle, qui sont l'information la plus utile de la table. C'est un ambre
+brûlé avec un liseré orange à gauche — présent sans écraser.

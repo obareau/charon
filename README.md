@@ -8,6 +8,8 @@ n'existe qu'en contexte sécurisé — donc en https, donc par le tunnel. En stu
 devant la machine, dépendre d'un tunnel pour parler à un appareil posé sur le
 bureau est absurde. Charon ouvre directement le port MIDI du système.
 
+![Charon — onglet d'envoi](docs/capture-envoi.png)
+
 ## Installer et lancer
 
 Une seule dépendance à avoir soi-même : [uv](https://docs.astral.sh/uv/).
@@ -39,6 +41,8 @@ uv run charon
 - temporise entre messages, réglable
 
 ## Onglet « Atelier de banks »
+
+![Charon — atelier de banks](docs/capture-atelier.png)
 
 Charge deux banks, pioche dedans, compose la troisième — puis enregistre-la en
 `.syx` ou envoie-la directement.

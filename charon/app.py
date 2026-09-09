@@ -16,43 +16,75 @@ from .sysex import Message, read_file, set_channel
 from .workshop import Workshop
 
 STYLE = """
-QMainWindow, QWidget { background: #0E0F0D; color: #D6D3CB;
+/* Palette DX7 (1983) : chassis brun sombre, membrane beige, LCD vert-jaune,
+   accent orange. Rien d'ornemental — ce sont les quatre matieres de la machine. */
+
+QMainWindow, QWidget { background: #2B2724; color: #CFC6B6;
     font-family: "IBM Plex Mono", "Menlo", "Consolas", "DejaVu Sans Mono", monospace;
     font-size: 12px; }
-QLabel#title { font-size: 17px; font-weight: 700; color: #E8E6DF; letter-spacing: .04em; }
-QLabel#subtitle { color: #7C8073; font-size: 11px; }
-QLabel.section { color: #7C8073; font-size: 10px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: .12em; }
-QPushButton { background: #161814; border: 1px solid #2A2E24; border-radius: 3px;
-    padding: 7px 14px; color: #D6D3CB; }
-QPushButton:hover { border-color: #4A5040; background: #1C1F19; }
-QPushButton:disabled { color: #4A4E45; border-color: #1F221C; }
-QPushButton#send { background: #2D3A1E; border-color: #4E6B2A; color: #C8E89A; font-weight: 700; }
-QPushButton#send:hover { background: #3A4A28; }
-QPushButton#send:disabled { background: #161814; color: #4A4E45; border-color: #1F221C; }
-QComboBox, QSpinBox { background: #0A0B09; border: 1px solid #2A2E24; border-radius: 3px;
-    padding: 6px 8px; color: #D6D3CB; }
-QComboBox::drop-down { border: none; width: 18px; }
-QComboBox QAbstractItemView { background: #161814; border: 1px solid #2A2E24;
-    selection-background-color: #2D3A1E; color: #D6D3CB; }
-QTableWidget { background: #0A0B09; border: 1px solid #2A2E24; border-radius: 3px;
-    gridline-color: #1F221C; selection-background-color: #2D3A1E; }
-QHeaderView::section { background: #161814; color: #7C8073; border: none;
-    border-bottom: 1px solid #2A2E24; padding: 6px; font-size: 10px;
-    text-transform: uppercase; letter-spacing: .1em; }
-QTabWidget::pane { border: 1px solid #2A2E24; border-radius: 3px; top: -1px; }
-QTabBar::tab { background: #121410; color: #7C8073; border: 1px solid #2A2E24;
-    padding: 7px 18px; margin-right: 2px; border-top-left-radius: 3px;
-    border-top-right-radius: 3px; }
-QTabBar::tab:selected { background: #1C1F19; color: #D6D3CB; border-bottom-color: #1C1F19; }
-QListWidget { background: #0A0B09; border: 1px solid #2A2E24; border-radius: 3px;
-    selection-background-color: #2D3A1E; selection-color: #E8E6DF; }
-QListWidget::item { padding: 3px 6px; }
-QPlainTextEdit { background: #0A0B09; border: 1px solid #2A2E24; border-radius: 3px;
-    color: #9AA08D; padding: 6px; }
+
+/* Le bandeau superieur : serigraphie claire sur le chassis */
+QLabel#title { font-size: 19px; font-weight: 700; color: #EFE7D6;
+    letter-spacing: .34em; }
+QLabel#subtitle { color: #9A8F7E; font-size: 11px; letter-spacing: .04em; }
+QLabel[class="section"] { color: #C08A4A; font-size: 10px; font-weight: 700;
+    letter-spacing: .16em; }
+
+/* Touches a membrane : beige, legerement bombees */
+QPushButton { background: #C6BCA8; border: 1px solid #8E8471;
+    border-bottom: 2px solid #7C7260; border-radius: 3px;
+    padding: 7px 15px; color: #2B2724; font-size: 11px;
+    font-weight: 600; letter-spacing: .06em; }
+QPushButton:hover { background: #D4CBB8; }
+QPushButton:pressed { background: #ADA391; border-bottom-width: 1px; margin-top: 1px; }
+QPushButton:disabled { background: #4A443D; color: #7A7264;
+    border-color: #3D372F; border-bottom-color: #3D372F; }
+
+/* L'action principale porte l'orange Yamaha */
+QPushButton#send { background: #C2551F; border: 1px solid #8E3C12;
+    border-bottom: 2px solid #6E2E0C; color: #FFF1E2; font-weight: 700; }
+QPushButton#send:hover { background: #D66327; }
+QPushButton#send:pressed { background: #A5460F; }
+QPushButton#send:disabled { background: #4A443D; color: #7A7264;
+    border-color: #3D372F; border-bottom-color: #3D372F; }
+
+/* Champs encastres dans le chassis */
+QComboBox, QSpinBox { background: #211E1B; border: 1px solid #554D43;
+    border-radius: 2px; padding: 6px 9px; color: #E4DAC6; }
+QComboBox:hover, QSpinBox:hover { border-color: #C08A4A; }
+QComboBox::drop-down { border: none; width: 20px; }
+QComboBox QAbstractItemView { background: #211E1B; border: 1px solid #554D43;
+    selection-background-color: #4E3418; selection-color: #F6E8D5; color: #E4DAC6; }
+
+/* Onglets : intercalaires du panneau */
+QTabWidget::pane { border: 1px solid #554D43; border-radius: 3px; top: -1px;
+    background: #322D28; }
+QTabBar::tab { background: #241F1C; color: #9A8F7E; border: 1px solid #554D43;
+    border-bottom: none; padding: 8px 20px; margin-right: 3px;
+    border-top-left-radius: 3px; border-top-right-radius: 3px;
+    font-size: 11px; letter-spacing: .08em; }
+QTabBar::tab:selected { background: #322D28; color: #EFE7D6;
+    border-top: 2px solid #C2551F; }
+
+/* Listes et table : fond de panneau, filet orange a la selection */
+QTableWidget, QListWidget { background: #211E1B; border: 1px solid #554D43;
+    border-radius: 2px; gridline-color: #3A342E;
+    selection-background-color: #4E3418; selection-color: #F6E8D5; }
+QTableWidget::item:selected, QListWidget::item:selected {
+    border-left: 2px solid #C2551F; }
+QListWidget::item { padding: 4px 7px; }
+QHeaderView::section { background: #3A342E; color: #C08A4A; border: none;
+    border-bottom: 1px solid #554D43; padding: 7px; font-size: 10px;
+    font-weight: 700; letter-spacing: .12em; }
+
+/* L'ecran : LCD vert-jaune a caracteres sombres, comme sur la machine */
+QPlainTextEdit { background: #A9BE55; border: 2px solid #1C1916;
+    border-radius: 2px; color: #23300F; padding: 7px;
+    font-weight: 600; selection-background-color: #23300F;
+    selection-color: #A9BE55; }
 """
 
-OK, WARN, BAD = "#A3E635", "#E6A700", "#D94F3D"
+OK, WARN, BAD = "#9BC24A", "#E3A72C", "#FF6B4A"
 
 
 # Un port de bouclage n'est pas une machine : y envoyer un dump ne va nulle part.
