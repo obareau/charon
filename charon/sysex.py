@@ -148,3 +148,58 @@ def read_file(path) -> list[Message]:
     with open(path, "rb") as fh:
         blob = fh.read()
     return [Message(raw=m, index=i) for i, m in enumerate(split_messages(blob))]
+
+
+# ── Niveau voix : découper une bank, en recomposer une autre ──────────────
+#
+# Dans un bulk 32 voix, le bloc de données est fait de 32 voix de 128 octets,
+# au format « compressé » du DX7 (une voix seule, elle, en fait 155 non
+# compressés — ce sont deux encodages différents du même patch).
+# Les 10 derniers octets de chaque voix portent son nom.
+
+VOICES_PER_BANK = 32
+PACKED_VOICE_SIZE = 128
+NAME_OFFSET = 118
+NAME_LENGTH = 10
+
+BULK_HEADER = bytes([SOX, YAMAHA, 0x00, 0x09, 0x20, 0x00])
+
+# Voix de remplissage pour un emplacement vide : tous paramètres à zéro, donc
+# niveaux de sortie à zéro — elle occupe la place sans rien émettre.
+EMPTY_VOICE = bytes(NAME_OFFSET) + b"INIT".ljust(NAME_LENGTH, b" ")
+
+
+def voice_name(packed: bytes) -> str:
+    """Nom d'une voix compressée, nettoyé de ses caractères non imprimables."""
+    raw = packed[NAME_OFFSET:NAME_OFFSET + NAME_LENGTH]
+    return "".join(chr(b) if 32 <= b < 127 else " " for b in raw).rstrip() or "(sans nom)"
+
+
+def voices(bulk: bytes) -> list[bytes]:
+    """Les 32 voix compressées d'un bulk. Lève ValueError si ce n'en est pas un."""
+    if len(bulk) != BULK_SIZE:
+        raise ValueError(f"pas un bulk 32 voix ({len(bulk)} o au lieu de {BULK_SIZE})")
+    start, end = data_span(bulk)
+    block = bulk[start:end]
+    return [block[i * PACKED_VOICE_SIZE:(i + 1) * PACKED_VOICE_SIZE]
+            for i in range(VOICES_PER_BANK)]
+
+
+def build_bank(chosen: list[bytes], channel: int = 1) -> bytes:
+    """Assemble une bank à partir de voix compressées.
+
+    Moins de 32 voix : les emplacements restants sont comblés par une voix
+    muette. Une bank DX7 en compte toujours exactement 32 — un bulk plus court
+    n'existe pas, la machine le rejetterait.
+    """
+    if len(chosen) > VOICES_PER_BANK:
+        raise ValueError(f"{len(chosen)} voix pour {VOICES_PER_BANK} emplacements")
+    for i, v in enumerate(chosen):
+        if len(v) != PACKED_VOICE_SIZE:
+            raise ValueError(f"voix {i + 1} : {len(v)} o au lieu de {PACKED_VOICE_SIZE}")
+
+    filled = list(chosen) + [EMPTY_VOICE] * (VOICES_PER_BANK - len(chosen))
+    block = b"".join(filled)
+    chk = (128 - (sum(block) & 0x7F)) & 0x7F
+    bank = BULK_HEADER + block + bytes([chk, EOX])
+    return set_channel(bank, channel)

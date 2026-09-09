@@ -8,10 +8,12 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QComboBox, QTableWidget, QTableWidgetItem, QSpinBox,
     QPlainTextEdit, QFileDialog, QHeaderView, QAbstractItemView, QMessageBox,
+    QTabWidget,
 )
 
 from . import midi
 from .sysex import Message, read_file, set_channel
+from .workshop import Workshop
 
 STYLE = """
 QMainWindow, QWidget { background: #0E0F0D; color: #D6D3CB;
@@ -37,6 +39,14 @@ QTableWidget { background: #0A0B09; border: 1px solid #2A2E24; border-radius: 3p
 QHeaderView::section { background: #161814; color: #7C8073; border: none;
     border-bottom: 1px solid #2A2E24; padding: 6px; font-size: 10px;
     text-transform: uppercase; letter-spacing: .1em; }
+QTabWidget::pane { border: 1px solid #2A2E24; border-radius: 3px; top: -1px; }
+QTabBar::tab { background: #121410; color: #7C8073; border: 1px solid #2A2E24;
+    padding: 7px 18px; margin-right: 2px; border-top-left-radius: 3px;
+    border-top-right-radius: 3px; }
+QTabBar::tab:selected { background: #1C1F19; color: #D6D3CB; border-bottom-color: #1C1F19; }
+QListWidget { background: #0A0B09; border: 1px solid #2A2E24; border-radius: 3px;
+    selection-background-color: #2D3A1E; selection-color: #E8E6DF; }
+QListWidget::item { padding: 3px 6px; }
 QPlainTextEdit { background: #0A0B09; border: 1px solid #2A2E24; border-radius: 3px;
     color: #9AA08D; padding: 6px; }
 """
@@ -102,6 +112,15 @@ class Charon(QMainWindow):
         row.addWidget(b)
         v.addLayout(row)
 
+        # Onglets : envoi de fichiers d'un côté, atelier de banks de l'autre
+        self.tabs = QTabWidget()
+        v.addWidget(self.tabs, 1)
+
+        envoi = QWidget()
+        v = QVBoxLayout(envoi)          # la suite se construit dans l'onglet
+        v.setContentsMargins(10, 10, 10, 10)
+        v.setSpacing(10)
+
         # Fichiers
         row2 = QHBoxLayout()
         b_open = QPushButton("Ouvrir des .syx…")
@@ -158,6 +177,15 @@ class Charon(QMainWindow):
         self.b_send.clicked.connect(self.send_selected)
         row3.addWidget(self.b_send)
         v.addLayout(row3)
+
+        self.tabs.addTab(envoi, "Envoyer des fichiers")
+
+        self.workshop = Workshop()
+        self.workshop.log.connect(self.say)
+        self.workshop.send_requested.connect(self.send_bank)
+        self.tabs.addTab(self.workshop, "Atelier de banks")
+
+        v = root.layout()               # on ressort de l'onglet pour le journal
 
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
@@ -287,6 +315,30 @@ class Charon(QMainWindow):
         self.sender_thread = Sender(port, payloads, self.delay.value())
         self.sender_thread.progress.connect(
             lambda i, t: self.say(f"   {i + 1}/{t} — {len(payloads[i])} o"))
+        self.sender_thread.done.connect(self.on_sent)
+        self.sender_thread.failed.connect(self.on_failed)
+        self.sender_thread.finished.connect(self.update_send_button)
+        self.sender_thread.start()
+
+    def send_bank(self, data: bytes):
+        """Envoi d'une bank composée dans l'atelier — un seul message, 4104 o."""
+        if not self.has_port():
+            QMessageBox.warning(self, "Pas de sortie MIDI",
+                                "Aucun port MIDI de sortie. Branche la machine, "
+                                "puis « Rafraîchir ».")
+            return
+        if self.sender_thread is not None and self.sender_thread.isRunning():
+            self.say("Un envoi est déjà en cours.")
+            return
+
+        ch = self.channel.currentData()
+        payload = set_channel(data, ch) if ch else data
+        m = Message(payload)
+        self.say(f"→ atelier : bank de {m.size} o ({m.status()}, canal {m.channel}) "
+                 f"vers « {self.ports.currentText()} »…")
+
+        self.b_send.setEnabled(False)
+        self.sender_thread = Sender(self.ports.currentIndex(), [payload], 0)
         self.sender_thread.done.connect(self.on_sent)
         self.sender_thread.failed.connect(self.on_failed)
         self.sender_thread.finished.connect(self.update_send_button)
