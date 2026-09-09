@@ -2,7 +2,7 @@
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt, QThread, Signal, QSettings, QTimer
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
@@ -55,6 +55,18 @@ QPlainTextEdit { background: #0A0B09; border: 1px solid #2A2E24; border-radius: 
 OK, WARN, BAD = "#A3E635", "#E6A700", "#D94F3D"
 
 
+# Un port de bouclage n'est pas une machine : y envoyer un dump ne va nulle part.
+# Le dire dans la liste évite le quart d'heure passé à chercher pourquoi le
+# Volca ne réagit pas.
+LOOPBACK_HINTS = ("midi through", "iac driver", "loopmidi", "loopbe")
+
+
+def port_label(name: str) -> str:
+    if any(h in name.lower() for h in LOOPBACK_HINTS):
+        return f"{name}   ⟲ bouclage — ne va vers aucune machine"
+    return name
+
+
 class Sender(QThread):
     """L'envoi vit dans un fil séparé : un dump fait ~1,3 s à 31250 bauds,
     et l'interface doit rester vivante pendant ce temps."""
@@ -83,8 +95,16 @@ class Charon(QMainWindow):
         self.setAcceptDrops(True)
         self.messages: list[tuple[str, Message]] = []
         self.sender_thread = None
+        self._known_ports: list[str] = []
         self._build()
-        self.refresh_ports()
+        self.refresh_ports(announce=False)
+
+        # Détection à chaud : brancher le Volca doit suffire, sans penser à
+        # cliquer « Rafraîchir ». L'énumération est peu coûteuse et la liste
+        # n'est reconstruite que si elle a réellement changé.
+        self._watch = QTimer(self)
+        self._watch.timeout.connect(lambda: self.refresh_ports(announce=True))
+        self._watch.start(2000)
 
     # ── construction ────────────────────────────────────────────────────
     def _build(self):
@@ -108,10 +128,14 @@ class Charon(QMainWindow):
         self.ports = QComboBox()
         self.ports.setMinimumWidth(340)
         row.addWidget(self.ports, 1)
+        self.count = QLabel("")
+        self.count.setObjectName("subtitle")
+        row.addWidget(self.count)
         b = QPushButton("Rafraîchir")
-        b.clicked.connect(self.refresh_ports)
+        b.clicked.connect(lambda: self.refresh_ports(announce=True))
         row.addWidget(b)
         v.addLayout(row)
+        self.ports.currentIndexChanged.connect(self.remember_port)
 
         # Onglets : envoi de fichiers d'un côté, atelier de banks de l'autre
         self.tabs = QTabWidget()
@@ -206,25 +230,67 @@ class Charon(QMainWindow):
     def say(self, text: str):
         self.log.appendPlainText(text)
 
-    def refresh_ports(self):
-        current = self.ports.currentText()
-        self.ports.clear()
+    def refresh_ports(self, announce: bool = True):
+        """Relit la liste des interfaces MIDI et retrouve celle choisie la dernière fois."""
         try:
             ports = midi.output_ports()
         except Exception as exc:                    # noqa: BLE001
             self.say(f"⚠ impossible de lister les ports : {exc}")
             ports = []
+
+        if ports == self._known_ports:
+            return                                   # rien n'a bougé
+        appeared = [p for p in ports if p not in self._known_ports]
+        vanished = [p for p in self._known_ports if p not in ports]
+        self._known_ports = ports
+
+        wanted = self.ports.currentData() or self._saved_port()
+        self.ports.blockSignals(True)
+        self.ports.clear()
         if ports:
-            self.ports.addItems(ports)
-            idx = self.ports.findText(current)
-            if idx >= 0:
-                self.ports.setCurrentIndex(idx)
+            for name in ports:
+                self.ports.addItem(port_label(name), name)
+            idx = self.ports.findData(wanted)
+            self.ports.setCurrentIndex(idx if idx >= 0 else 0)
         else:
-            self.ports.addItem("aucun port MIDI détecté")
+            self.ports.addItem("aucune interface MIDI détectée", None)
+        self.ports.blockSignals(False)
+
+        self.count.setText(f"{len(ports)} interface(s)" if ports else "")
+        if announce:
+            for p in appeared:
+                self.say(f"＋ interface branchée : {p}")
+            for p in vanished:
+                self.say(f"－ interface débranchée : {p}")
         self.update_send_button()
 
+    # Le choix survit à la fermeture : en studio on rebranche toujours la même
+    # interface, la redemander à chaque lancement est une corvée inutile.
+    def _saved_port(self):
+        return QSettings("robotariis", "charon").value("port")
+
+    def remember_port(self):
+        name = self.ports.currentData()
+        if name:
+            QSettings("robotariis", "charon").setValue("port", name)
+
+    def port_index(self) -> int | None:
+        """Index rtmidi de l'interface choisie, résolu par son nom.
+
+        Résolu au moment de l'envoi, jamais mémorisé : un branchement entre le
+        choix et le clic décalerait les index, et le dump partirait vers la
+        mauvaise machine.
+        """
+        name = self.ports.currentData()
+        if not name:
+            return None
+        try:
+            return midi.output_ports().index(name)
+        except ValueError:
+            return None
+
     def has_port(self) -> bool:
-        return self.ports.count() > 0 and not self.ports.currentText().startswith("aucun")
+        return self.ports.currentData() is not None
 
     def update_send_button(self):
         busy = self.sender_thread is not None and self.sender_thread.isRunning()
@@ -309,8 +375,11 @@ class Charon(QMainWindow):
         if ch:
             self.say(f"Canal forcé à {ch} sur {len(payloads)} message(s).")
 
-        port = self.ports.currentIndex()
-        self.say(f"→ envoi de {len(payloads)} message(s) vers « {self.ports.currentText()} »…")
+        port = self.port_index()
+        if port is None:
+            self.say("✗ l'interface choisie a disparu — rebranche-la ou choisis-en une autre.")
+            return
+        self.say(f"→ envoi de {len(payloads)} message(s) vers « {self.ports.currentData()} »…")
         self.b_send.setEnabled(False)
 
         self.sender_thread = Sender(port, payloads, self.delay.value())
@@ -336,10 +405,14 @@ class Charon(QMainWindow):
         payload = set_channel(data, ch) if ch else data
         m = Message(payload)
         self.say(f"→ atelier : bank de {m.size} o ({m.status()}, canal {m.channel}) "
-                 f"vers « {self.ports.currentText()} »…")
+                 f"vers « {self.ports.currentData()} »…")
 
+        port = self.port_index()
+        if port is None:
+            self.say("✗ l'interface choisie a disparu — rebranche-la ou choisis-en une autre.")
+            return
         self.b_send.setEnabled(False)
-        self.sender_thread = Sender(self.ports.currentIndex(), [payload], 0)
+        self.sender_thread = Sender(port, [payload], 0)
         self.sender_thread.done.connect(self.on_sent)
         self.sender_thread.failed.connect(self.on_failed)
         self.sender_thread.finished.connect(self.update_send_button)

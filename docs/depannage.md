@@ -5,7 +5,25 @@ génériques.
 
 ---
 
-## « Aucun port MIDI détecté »
+## Où est le sélecteur d'interface ?
+
+**Troisième ligne de la fenêtre**, sous le titre : libellé « Sortie MIDI », la
+liste déroulante, le nombre d'interfaces détectées, et « Rafraîchir ».
+
+La liste se met à jour **toute seule** : brancher le Volca le fait apparaître
+en deux secondes, et le journal l'annonce. Le choix est retenu d'un lancement à
+l'autre.
+
+⚠️ Les ports de **bouclage** sont signalés `⟲ bouclage — ne va vers aucune
+machine` : « Midi Through » sur Linux, « IAC Driver » sur macOS, « loopMIDI »
+sur Windows. Ils servent à tester, jamais à jouer.
+
+ℹ️ Sur une machine sans interface MIDI, la liste ne contient que ce bouclage —
+elle a alors l'air de n'offrir aucun choix, ce qui est exact.
+
+---
+
+## « Aucune interface MIDI détectée »
 
 **La machine n'est pas vue.** Dans l'ordre :
 
