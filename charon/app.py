@@ -17,7 +17,8 @@ from .workshop import Workshop
 
 STYLE = """
 QMainWindow, QWidget { background: #0E0F0D; color: #D6D3CB;
-    font-family: "IBM Plex Mono", "DejaVu Sans Mono", monospace; font-size: 12px; }
+    font-family: "IBM Plex Mono", "Menlo", "Consolas", "DejaVu Sans Mono", monospace;
+    font-size: 12px; }
 QLabel#title { font-size: 17px; font-weight: 700; color: #E8E6DF; letter-spacing: .04em; }
 QLabel#subtitle { color: #7C8073; font-size: 11px; }
 QLabel.section { color: #7C8073; font-size: 10px; font-weight: 700;
