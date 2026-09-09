@@ -1,0 +1,22 @@
+[project]
+name = "charon"
+version = "0.1.0"
+description = "Passeur SysEx — envoie des patches DX7/Volca FM vers la machine, sans navigateur"
+requires-python = ">=3.11"
+dependencies = [
+    "PySide6-Essentials>=6.7",
+    "python-rtmidi>=1.5",
+]
+
+[project.scripts]
+charon = "charon.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["charon"]
+
+[dependency-groups]
+dev = ["pytest>=8"]
