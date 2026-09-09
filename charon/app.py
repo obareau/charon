@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QThread, Signal, QSettings, QTimer
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QKeySequence, QFontDatabase
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QComboBox, QTableWidget, QTableWidgetItem, QSpinBox,
@@ -15,7 +15,7 @@ from . import midi
 from .sysex import Message, read_file, set_channel
 from .workshop import Workshop
 
-STYLE = """
+STYLE_TEMPLATE = """
 /* Palette DX7 (1983) : chassis brun sombre, membrane beige, LCD vert-jaune,
    accent orange. Rien d'ornemental — ce sont les quatre matieres de la machine. */
 
@@ -70,21 +70,59 @@ QTabBar::tab:selected { background: #322D28; color: #EFE7D6;
 QTableWidget, QListWidget { background: #211E1B; border: 1px solid #554D43;
     border-radius: 2px; gridline-color: #3A342E;
     selection-background-color: #4E3418; selection-color: #F6E8D5; }
-QTableWidget::item:selected, QListWidget::item:selected {
-    border-left: 2px solid #C2551F; }
+QTableWidget::item:selected, QListWidget::item:selected { color: #FFE9D2; }
 QListWidget::item { padding: 4px 7px; }
 QHeaderView::section { background: #3A342E; color: #C08A4A; border: none;
     border-bottom: 1px solid #554D43; padding: 7px; font-size: 10px;
     font-weight: 700; letter-spacing: .12em; }
 
 /* L'ecran : LCD vert-jaune a caracteres sombres, comme sur la machine */
+/* Ascenseurs : taillés dans la même matière que le panneau, et dans le verre
+   de l'écran pour le journal — un ascenseur gris système casse l'illusion. */
+QScrollBar:vertical, QScrollBar:horizontal { background: #211E1B; border: none;
+    width: 11px; height: 11px; margin: 0; }
+QScrollBar::handle { background: #6B6153; border-radius: 5px; min-height: 24px;
+    min-width: 24px; }
+QScrollBar::handle:hover { background: #8A7E6C; }
+QScrollBar::add-line, QScrollBar::sub-line { height: 0; width: 0; }
+QScrollBar::add-page, QScrollBar::sub-page { background: none; }
+QPlainTextEdit QScrollBar:vertical { background: #97AC48; width: 10px; }
+QPlainTextEdit QScrollBar::handle { background: #4C5F1D; border-radius: 5px; }
+QPlainTextEdit QScrollBar::handle:hover { background: #3A4A15; }
+
 QPlainTextEdit { background: #A9BE55; border: 2px solid #1C1916;
-    border-radius: 2px; color: #23300F; padding: 7px;
-    font-weight: 600; selection-background-color: #23300F;
-    selection-color: #A9BE55; }
+    border-radius: 2px; color: #23300F; padding: 8px 10px;
+    font-family: __LCD__; font-size: 13px;
+    selection-background-color: #23300F; selection-color: #A9BE55; }
 """
 
 OK, WARN, BAD = "#9BC24A", "#E3A72C", "#FF6B4A"
+
+
+# Police de l'écran : le DX7 n'a pas d'afficheur à segments mais un LCD à
+# MATRICE DE POINTS. DotGothic16 en reprend le grain — embarquée dans le dépôt
+# (licence OFL, redistribution permise) pour que le rendu soit le même sur les
+# trois systèmes, sans rien demander à l'utilisateur.
+FONT_DIR = Path(__file__).parent / "assets" / "fonts"
+LCD_FAMILY = None
+
+
+def load_lcd_font() -> str:
+    """Charge la police de l'écran et renvoie la pile à utiliser en CSS.
+
+    Si le chargement échoue — fichier absent d'une installation bricolée,
+    système sans support —, on retombe sur la pile monospace : l'écran perd son
+    grain, il ne devient pas illisible.
+    """
+    global LCD_FAMILY
+    ttf = FONT_DIR / "DotGothic16-Regular.ttf"
+    if ttf.exists():
+        fid = QFontDatabase.addApplicationFont(str(ttf))
+        familles = QFontDatabase.applicationFontFamilies(fid) if fid != -1 else []
+        if familles:
+            LCD_FAMILY = familles[0]
+            return f'"{LCD_FAMILY}", "Menlo", "Consolas", monospace'
+    return '"IBM Plex Mono", "Menlo", "Consolas", "DejaVu Sans Mono", monospace'
 
 
 # Un port de bouclage n'est pas une machine : y envoyer un dump ne va nulle part.
@@ -199,6 +237,7 @@ class Charon(QMainWindow):
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.verticalHeader().setVisible(False)
+        self.table.setWordWrap(False)
         h = self.table.horizontalHeader()
         h.setSectionResizeMode(0, QHeaderView.Stretch)
         for c in range(1, 6):
@@ -461,7 +500,7 @@ class Charon(QMainWindow):
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Charon")
-    app.setStyleSheet(STYLE)
+    app.setStyleSheet(STYLE_TEMPLATE.replace("__LCD__", load_lcd_font()))
     w = Charon()
     w.show()
     sys.exit(app.exec())

@@ -114,6 +114,7 @@ souvenir :
 | Touches | `#C6BCA8` | les touches à membrane beige, avec un liseré bas qui les bombe |
 | Accent | `#C2551F` | l'orange Yamaha, réservé à l'action principale |
 | Journal | `#A9BE55` sur `#23300F` | l'écran LCD vert-jaune à caractères sombres |
+| Police de l'écran | DotGothic16 | une **matrice de points**, embarquée sous OFL |
 
 ⚠️ **La sélection n'utilise pas l'orange plein.** Essayé, puis abandonné : elle
 recouvrait la colonne État et rendait illisibles les couleurs de somme de

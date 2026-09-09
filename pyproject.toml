@@ -20,5 +20,10 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["charon"]
 
+# La police de l'écran voyage avec le paquet : sans elle, l'installation
+# retombe sur une monospace et perd le grain du LCD.
+[tool.hatch.build.targets.wheel.force-include]
+"charon/assets" = "charon/assets"
+
 [dependency-groups]
 dev = ["pytest>=8"]

@@ -86,4 +86,13 @@ les passer sur les trois systèmes en intégration continue.
 
 ## Licence
 
-MIT
+MIT pour le code.
+
+La police de l'écran, **[DotGothic16](https://github.com/fontworks-fonts/DotGothic16)**
+de Fontworks, est embarquée sous **SIL Open Font License 1.1** — texte complet
+dans [`charon/assets/fonts/OFL.txt`](charon/assets/fonts/OFL.txt).
+
+Elle est incluse dans le dépôt plutôt que téléchargée à l'installation : le
+rendu doit être le même sur les trois systèmes sans rien demander à personne.
+C'est une matrice de points, pas un afficheur à segments — le DX7 a un LCD à
+caractères, une police 7-segments serait un contresens.
