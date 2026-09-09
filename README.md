@@ -71,6 +71,15 @@ proprement là où ce port n'existe pas (macOS, Windows).
 ℹ️ Les tests n'importent jamais Qt : ils tournent sans écran, ce qui permet de
 les passer sur les trois systèmes en intégration continue.
 
+## Documentation
+
+| Document | Contenu |
+|---|---|
+| [`docs/format-sysex.md`](docs/format-sysex.md) | Le format DX7 tel que Charon le connaît — et ce qu'il ignore délibérément |
+| [`docs/architecture.md`](docs/architecture.md) | Les quatre modules, et pourquoi le noyau ignore Qt |
+| [`docs/depannage.md`](docs/depannage.md) | Symptômes réels et leurs causes |
+| [`CLAUDE.md`](CLAUDE.md) | Repères pour travailler sur le code |
+
 ## Licence
 
 MIT
