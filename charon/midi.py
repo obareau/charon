@@ -16,13 +16,35 @@ class MidiError(RuntimeError):
     pass
 
 
+def backend_available() -> bool:
+    """Le système offre-t-il seulement une couche MIDI ?
+
+    Sur une machine Linux sans séquenceur ALSA — serveur, conteneur, runner
+    d'intégration — l'ouverture échoue au lieu de rendre une liste vide.
+    """
+    try:
+        out = rtmidi.MidiOut()
+    except Exception:                      # noqa: BLE001 — dépend du système
+        return False
+    del out
+    return True
+
+
 def output_ports() -> list[str]:
     """Noms des ports de sortie, dans l'ordre où rtmidi les indexe.
+
+    Renvoie une liste vide quand aucune couche MIDI n'est disponible : pas de
+    système MIDI et aucun appareil branché sont, pour l'appelant, la même
+    situation — rien où envoyer. C'est `send()` qui doit expliquer pourquoi,
+    au moment où quelqu'un tente vraiment quelque chose.
 
     Recréé à chaque appel : un port apparaît ou disparaît au branchement, et
     une liste mise en cache ferait viser un index périmé.
     """
-    out = rtmidi.MidiOut()
+    try:
+        out = rtmidi.MidiOut()
+    except Exception:                      # noqa: BLE001 — dépend du système
+        return []
     try:
         return list(out.get_ports())
     finally:
@@ -44,7 +66,12 @@ def send(port_index: int, messages, delay_ms: int = 200, progress=None) -> int:
     if not messages:
         return 0
 
-    out = rtmidi.MidiOut()
+    try:
+        out = rtmidi.MidiOut()
+    except Exception as exc:               # noqa: BLE001 — dépend du système
+        raise MidiError(
+            "aucune couche MIDI disponible sur ce système "
+            f"(ALSA absent ou inaccessible) : {exc}") from exc
     ports = out.get_ports()
     if not ports:
         del out

@@ -19,13 +19,21 @@ def _through(ports):
     return next((i for i, p in enumerate(ports) if "Through" in p), None)
 
 
+def _loopback_index():
+    """Index du port de bouclage, ou None — jamais d'exception à la collecte."""
+    try:
+        return _through(output_ports())
+    except Exception:                      # noqa: BLE001 — ceinture et bretelles
+        return None
+
+
 def _bulk() -> bytes:
     data = bytes([(i * 7) & 0x7F for i in range(4096)])
     chk = (128 - (sum(data) & 0x7F)) & 0x7F
     return bytes([SOX, 0x43, 0x00, 0x09, 0x20, 0x00]) + data + bytes([chk, EOX])
 
 
-@pytest.mark.skipif(_through(output_ports()) is None,
+@pytest.mark.skipif(_loopback_index() is None,
                     reason="pas de port MIDI de bouclage sur cette machine")
 def test_un_dump_traverse_intact_et_le_canal_suit():
     bulk = _bulk()
@@ -63,3 +71,31 @@ def test_un_dump_traverse_intact_et_le_canal_suit():
     assert recu == payloads, "les 4104 octets n'ont pas traversé à l'identique"
     assert Message(recu[1]).channel == 5
     assert Message(recu[1]).checksum_ok is True, "le canal forcé a cassé la somme"
+
+
+def test_absence_de_couche_midi_rend_une_liste_vide(monkeypatch):
+    """Sans séquenceur ALSA — serveur, conteneur, CI — on ne plante pas.
+
+    « Pas de système MIDI » et « aucun appareil branché » sont la même
+    situation pour l'appelant : rien où envoyer.
+    """
+    import charon.midi as m
+
+    def explose():
+        raise RuntimeError("MidiOutAlsa::initialize: error creating ALSA sequencer client object.")
+
+    monkeypatch.setattr(m.rtmidi, "MidiOut", explose)
+    assert m.output_ports() == []
+    assert m.backend_available() is False
+
+
+def test_send_explique_l_absence_de_couche_midi(monkeypatch):
+    """send(), lui, doit dire pourquoi : quelqu'un tente vraiment quelque chose."""
+    import charon.midi as m
+
+    def explose():
+        raise RuntimeError("pas d'ALSA ici")
+
+    monkeypatch.setattr(m.rtmidi, "MidiOut", explose)
+    with pytest.raises(m.MidiError, match="aucune couche MIDI"):
+        m.send(0, [b"\xf0\x43\xf7"])
